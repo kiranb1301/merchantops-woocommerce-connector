@@ -32,11 +32,14 @@ class JsonFormatter(logging.Formatter):
             "msg": record.getMessage(),
             "request_id": current_request_id(),
         }
+        
         for key, value in record.__dict__.items():
             if key not in _STANDARD:
                 payload[key] = value
+                
         if record.exc_info:
             payload["exc"] = self.formatException(record.exc_info)
+            
         return json.dumps(payload, default=str)
 
 

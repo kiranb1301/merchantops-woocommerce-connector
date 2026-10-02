@@ -43,26 +43,38 @@ class ProductService:
 
     async def list_products(self,*,page:int=1,per_page:int=20,status:str|None=None,
                             cursor:str|None=None)->ProductListResponse:
-        if not 1<=per_page<=MAX_LIMIT: raise ValidationError("per_page must be 1-100")
+        if not 1<=per_page<=MAX_LIMIT: 
+            raise ValidationError("per_page must be 1-100")
+        
         filters={"status":status,"per_page":per_page}; page=_page(cursor,filters) if cursor else page
+        
         params={"page":page,"per_page":per_page}
-        if status: params["status"]=status
+        if status: 
+            params["status"]=status
         resp=await self.client.get("products",params)
         return _response(resp,[_summary(x) for x in resp.data],page,per_page,filters)
 
     async def get_product(self,product_id:int)->Product:
         if not isinstance(product_id,int) or isinstance(product_id,bool) or product_id<1:
             raise ValidationError("product_id must be a positive integer")
+        
         return _detail((await self.client.get(f"products/{product_id}")).data)
 
     async def search_products(self,req:ProductSearchRequest,cursor:str|None=None)->ProductListResponse:
         allowed={"name","sku","global_unique_id","description","short_description"}
-        if any(f not in allowed for f in req.search_fields): raise ValidationError(f"search_fields must be from: {sorted(allowed)}")
+        if any(f not in allowed for f in req.search_fields): 
+            raise ValidationError(f"search_fields must be from: {sorted(allowed)}")
+        
         filters=req.model_dump(); page=_page(cursor,filters) if cursor else req.page
+        
         params={"page":page,"per_page":req.per_page}
-        if req.query: params["search"]=req.query
+        if req.query: 
+            params["search"]=req.query
         allowed={"name","sku","global_unique_id","description","short_description"}
         fields=[f for f in req.search_fields if f in allowed]
-        if fields: params["search_fields"]=",".join(fields)
+        
+        if fields: 
+            params["search_fields"]=",".join(fields)
         resp=await self.client.get("products",params)
+        
         return _response(resp,[_summary(x) for x in resp.data],page,req.per_page,filters)

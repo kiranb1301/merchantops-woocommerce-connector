@@ -95,8 +95,6 @@ class WooClient:
     async def __aexit__(self, *exc: object) -> None:
         await self.aclose()
 
-    # ------------------------------------------------------------------ core
-
     async def get(self, path: str, params: dict[str, Any] | None = None) -> ApiResponse:
         url = f"{self.base}/{path.lstrip('/')}"
         started = self._clock()
@@ -115,12 +113,14 @@ class WooClient:
             except httpx.HTTPError as exc:
                 self._breaker.record_failure()
                 error = UpstreamError(f"Network error talking to the store ({type(exc).__name__})")
+                
             else:
                 status = resp.status_code
                 if 200 <= status < 300:
                     self._breaker.record_success()
                     self._log(path, params, status, attempt, started)
                     return self._parse(resp)
+                
                 if status == 429:
                     # Throttled, not broken: do not count against the breaker.
                     server_delay = parse_retry_after(resp.headers.get("Retry-After"))
@@ -129,10 +129,12 @@ class WooClient:
                         retry_after_s=server_delay,
                         status=429,
                     )
+                    
                 elif status in RETRYABLE_5XX:
                     self._breaker.record_failure()
                     server_delay = parse_retry_after(resp.headers.get("Retry-After"))
                     error = UpstreamError(f"The store returned HTTP {status}.", status=status)
+                    
                 else:
                     self._breaker.record_success()  # store is healthy; our request was wrong
                     self._log(path, params, status, attempt, started)
@@ -142,9 +144,12 @@ class WooClient:
 
             if attempt >= self.max_retries:
                 raise error
+            
             if server_delay is not None and server_delay > self.max_retry_after_s:
                 raise error  # asked to wait longer than we are willing to; tell the agent
+            
             delay = backoff_delay(attempt, rng=self._rng)
+            
             if server_delay is not None:
                 delay = max(delay, server_delay)
             if (self._clock() - started) + delay > self.max_elapsed_s:
@@ -176,18 +181,22 @@ class WooClient:
             )
         if status == 404:
             return NotFoundError("The requested resource was not found.", status=404)
+        
         if 300 <= status < 400:
             return UpstreamError(
                 "The store redirected the request. Use the canonical https:// store URL.",
                 status=status,
             )
+            
         detail = ""
+        
         try:
             body = resp.json()
             if isinstance(body, dict):
                 detail = str(body.get("message", ""))[:200]
         except ValueError:
             pass
+        
         return UpstreamError(
             f"The store rejected the request (HTTP {status}). {detail}".strip(),
             status=status,

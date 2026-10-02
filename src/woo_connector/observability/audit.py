@@ -9,4 +9,5 @@ def audit_tool_call(*, request_id: str, tool: str, status: str, result_count: in
     extra: dict[str, Any] = {"event": "tool_invocation", "request_id": request_id, "tool": tool, "status": status}
     if result_count is not None:
         extra["result_count"] = result_count
+        
     log.info("tool_invocation", extra=extra)

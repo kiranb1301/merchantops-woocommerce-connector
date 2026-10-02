@@ -63,4 +63,5 @@ class OrderSearchRequest(BaseModel):
     def valid_status(cls, value):
         if value is not None and value not in {"any", "pending", "processing", "on-hold", "completed", "cancelled", "refunded", "failed"}:
             raise ValueError("unsupported WooCommerce order status")
+        
         return value

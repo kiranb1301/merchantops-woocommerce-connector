@@ -18,8 +18,10 @@ class TokenBucket:
         clock: Callable[[], float] = time.monotonic,
         sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
     ) -> None:
+        
         if rate_per_s <= 0 or capacity <= 0:
             raise ValueError("rate_per_s and capacity must be positive")
+        
         self.rate = float(rate_per_s)
         self.capacity = float(capacity)
         self._tokens = float(capacity)
@@ -39,11 +41,13 @@ class TokenBucket:
     async def acquire(self, n: float = 1.0) -> None:
         if n <= 0 or n > self.capacity:
             raise ValueError("requested token count must be > 0 and <= capacity")
+        
         async with self._lock:
             while True:
                 self._refill()
                 if self._tokens >= n:
                     self._tokens -= n
                     return
+                
                 await self._sleep((n - self._tokens) / self.rate)
                 self._refill()
