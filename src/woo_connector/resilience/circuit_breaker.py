@@ -20,10 +20,13 @@ class CircuitBreaker:
         *,
         clock: Callable[[], float] = time.monotonic,
     ) -> None:
+        
         if failure_threshold < 1:
             raise ValueError("failure_threshold must be >= 1")
+        
         if reset_after_s <= 0:
             raise ValueError("reset_after_s must be positive")
+        
         self.failure_threshold = failure_threshold
         self.reset_after_s = reset_after_s
         self._clock = clock
@@ -35,14 +38,18 @@ class CircuitBreaker:
     def state(self) -> str:
         if self._opened_at is None:
             return "closed"
+        
         if self._clock() - self._opened_at >= self.reset_after_s:
             return "half_open"
+        
         return "open"
 
     def before_call(self) -> None:
         if self._opened_at is None:
             return
+        
         elapsed = self._clock() - self._opened_at
+        
         if elapsed < self.reset_after_s:
             raise CircuitOpenError(
                 "The store has been failing repeatedly; calls are paused briefly.",

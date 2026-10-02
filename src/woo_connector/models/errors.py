@@ -21,10 +21,23 @@ class ConnectorError(Exception):
         return out
 
 
-class NotConfiguredError(ConnectorError): code = "not_configured"
-class ValidationError(ConnectorError): code = "invalid_input"
-class AuthError(ConnectorError): code = "auth_failed"
-class NotFoundError(ConnectorError): code = "not_found"
-class RateLimitedError(ConnectorError): code = "rate_limited"
-class UpstreamError(ConnectorError): code = "upstream_error"
-class CircuitOpenError(ConnectorError): code = "circuit_open"
+class NotConfiguredError(ConnectorError): 
+    code = "not_configured"
+    
+class ValidationError(ConnectorError): 
+    code = "invalid_input"
+    
+class AuthError(ConnectorError): 
+    code = "auth_failed"
+    
+class NotFoundError(ConnectorError): 
+    code = "not_found"
+    
+class RateLimitedError(ConnectorError): 
+    code = "rate_limited"
+    
+class UpstreamError(ConnectorError): 
+    code = "upstream_error"
+    
+class CircuitOpenError(ConnectorError): 
+    code = "circuit_open"

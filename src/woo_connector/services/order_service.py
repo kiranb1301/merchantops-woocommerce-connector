@@ -34,9 +34,11 @@ def _page(cursor: str | None, filters: dict[str, Any]) -> int:
     try:
         raw = json.loads(base64.urlsafe_b64decode(cursor + "=" * (-len(cursor) % 4)))
         expected = hashlib.sha256(json.dumps(filters, sort_keys=True, default=str).encode()).hexdigest()[:12]
+        
         if raw["filters"] != expected or int(raw["page"]) < 1:
             raise ValueError
         return int(raw["page"])
+    
     except Exception:
         raise ValidationError("cursor is invalid or does not match the current filters.") from None
 
@@ -53,6 +55,7 @@ def _customer(order: dict[str, Any]) -> CustomerSummary:
         email = None
     digits = "".join(c for c in str(billing.get("phone") or "") if c.isdigit())
     phone = ("*" * (len(digits)-4) + digits[-4:]) if len(digits) > 4 else ("****" if digits else None)
+    
     return CustomerSummary(id=order.get("customer_id") or None, name=name, email=email, phone=phone,
                            city=billing.get("city") or None, state=billing.get("state") or None,
                            country=billing.get("country") or None)
@@ -106,41 +109,65 @@ class OrderService:
 
     async def list_orders(self, *, page: int=1, per_page: int=20, status: str="any",
                           after: str|None=None, before: str|None=None, cursor: str|None=None) -> OrderListResponse:
+        
         if status != "any" and status not in ORDER_STATUSES:
             raise ValidationError(f"status must be 'any' or one of: {', '.join(ORDER_STATUSES)}")
-        if not 1 <= per_page <= MAX_LIMIT: raise ValidationError("per_page must be 1-100")
-        if not 1 <= page <= 1000: raise ValidationError("page must be between 1 and 1000")
+        if not 1 <= per_page <= MAX_LIMIT: 
+            raise ValidationError("per_page must be 1-100")
+        if not 1 <= page <= 1000: 
+            raise ValidationError("page must be between 1 and 1000")
+        
         filters={"status":status,"after":after,"before":before,"per_page":per_page}
+        
         page=_page(cursor,filters) if cursor else page
         params={"page":page,"per_page":per_page,"orderby":"date","order":"desc"}
-        if status != "any": params["status"]=status
-        if after: params["after"]=_iso(after,"after")
-        if before: params["before"]=_iso(before,"before")
+        if status != "any": 
+            params["status"]=status
+        if after: 
+            params["after"]=_iso(after,"after")
+        if before: 
+            params["before"]=_iso(before,"before")
+            
         resp=await self.client.get("orders",params)
+        
         return _list_response(resp,[_summary(x) for x in resp.data],page,per_page,filters)
 
     async def get_order(self, order_id: int) -> Order:
+        
         if not isinstance(order_id,int) or isinstance(order_id,bool) or order_id<1:
             raise ValidationError("order_id must be a positive integer")
+        
         return _detail((await self.client.get(f"orders/{order_id}")).data)
 
     async def search_orders(self, req: OrderSearchRequest, cursor: str|None=None) -> OrderListResponse:
-        if req.query is not None and not req.query.strip(): raise ValidationError("query must not be empty")
+        if req.query is not None and not req.query.strip(): 
+            raise ValidationError("query must not be empty")
         filters=req.model_dump()
+        
         page=_page(cursor,filters) if cursor else req.page
         params={"page":page,"per_page":req.per_page,"search":req.query} if req.query else {"page":page,"per_page":req.per_page}
-        if req.status and req.status != "any": params["status"]=req.status
-        if req.customer_id: params["customer"]=req.customer_id
-        if req.after: params["after"]=_iso(req.after,"after")
-        if req.before: params["before"]=_iso(req.before,"before")
+        if req.status and req.status != "any": 
+            params["status"]=req.status
+        if req.customer_id: 
+            params["customer"]=req.customer_id
+        if req.after: 
+            params["after"]=_iso(req.after,"after")
+        if req.before: 
+            params["before"]=_iso(req.before,"before")
+            
         resp=await self.client.get("orders",params)
         return _list_response(resp,[_summary(x) for x in resp.data],page,req.per_page,filters)
 
     async def summary(self, *, after: str|None=None, before: str|None=None, max_pages: int=10) -> dict[str, Any]:
-        if not 1<=max_pages<=20: raise ValidationError("max_pages must be 1-20")
+        if not 1<=max_pages<=20: 
+            raise ValidationError("max_pages must be 1-20")
         params={"status":"any","per_page":100}
-        if after: params["after"]=_iso(after,"after")
-        if before: params["before"]=_iso(before,"before")
+        
+        if after: 
+            params["after"]=_iso(after,"after")
+        if before:
+            params["before"]=_iso(before,"before")
+            
         buckets:dict[str,dict[str,dict[str,Any]]]={}; page=counted=0; truncated=False
         while True:
             page += 1
@@ -149,10 +176,17 @@ class OrderService:
                 cur=raw.get("currency") or "UNKNOWN"; st=raw.get("status") or "unknown"
                 cell=buckets.setdefault(cur,{}).setdefault(st,{"count":0,"total":Decimal("0")})
                 cell["count"]+=1; counted+=1
-                try: cell["total"] += Decimal(str(raw.get("total","0")))
-                except InvalidOperation: pass
-            if not resp.total_pages or page>=resp.total_pages: break
-            if page>=max_pages: truncated=True; break
+                
+                try: 
+                    cell["total"] += Decimal(str(raw.get("total","0")))
+                except InvalidOperation: 
+                    pass
+                
+            if not resp.total_pages or page>=resp.total_pages: 
+                break
+            if page>=max_pages: truncated=True; 
+            break
+        
         return {"period":{"after":after,"before":before},"orders_counted":counted,
                 "by_currency":{c:{s:{"count":v["count"],"total":str(v["total"])} for s,v in b.items()} for c,b in buckets.items()},
                 "truncated":truncated}
