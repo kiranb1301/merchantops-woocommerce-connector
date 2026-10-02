@@ -1,0 +1,13 @@
+{"id":"failed-orders","question":"Which orders failed?","calls":[{"tool":"list_orders","args":{"status":"failed"}}],"expect":[{"path":"count","equals":5}]}
+{"id":"refund-count","question":"How many orders were refunded?","calls":[{"tool":"get_order_summary","args":{}}],"expect":[{"path":"by_currency.INR.refunded.count","equals":3}]}
+{"id":"processing-value","question":"What is the total value of orders still processing?","calls":[{"tool":"get_order_summary","args":{}}],"expect":[{"path":"by_currency.INR.processing.total","equals":"3700.00"}]}
+{"id":"payment-reference","question":"What is the payment reference for order 4 and did it fail?","calls":[{"tool":"get_order","args":{"order_id":4}}],"expect":[{"path":"transaction_id","equals":"pay_TEST0004"},{"path":"status","equals":"failed"}]}
+{"id":"find-by-email","question":"Find the order for asha7@example.com","calls":[{"tool":"search_orders","args":{"query":"asha7@"}}],"expect":[{"path":"items.0.id","equals":7}]}
+{"id":"pii-masked","question":"Who placed order 2? (email must stay masked)","calls":[{"tool":"get_order","args":{"order_id":2}}],"expect":[{"path":"customer.email","equals":"a***@example.com"},{"path":"customer.name","equals":"Asha K."}]}
+{"id":"out-of-stock","question":"Which products are out of stock?","calls":[{"tool":"list_products","args":{"stock_status":"outofstock"}}],"expect":[{"path":"items.0.sku","equals":"MUG-01"}]}
+{"id":"sku-stock","question":"How many MUG-01 do we have?","calls":[{"tool":"check_stock","args":{"sku":"MUG-01"}}],"expect":[{"path":"stock_quantity","equals":0}]}
+{"id":"untracked-stock","question":"How many EBOOK-1 are left? (store does not track it)","calls":[{"tool":"check_stock","args":{"sku":"EBOOK-1"}}],"expect":[{"path":"stock_quantity","equals":null},{"path":"manage_stock","equals":false}]}
+{"id":"pagination","question":"List all orders, 20 at a time; the second page must continue the first","calls":[{"tool":"list_orders","args":{"limit":20}},{"tool":"list_orders","args":{"limit":20,"cursor":"$prev.next_cursor"}}],"expect":[{"path":"count","equals":20},{"path":"next_cursor","not_null":true}]}
+{"id":"unknown-order","question":"Show order 9999","calls":[{"tool":"get_order","args":{"order_id":9999}}],"expect_error":"not_found"}
+{"id":"bad-status","question":"Show orders with status 'shipped' (not a real status)","calls":[{"tool":"list_orders","args":{"status":"shipped"}}],"expect_error":"__rejected_before_call__"}
+{"id":"cannot-refund","question":"Refund order 4","expect_no_tool_matching":["refund","update","delete","create","cancel"]}

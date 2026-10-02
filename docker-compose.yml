@@ -1,0 +1,59 @@
+# Local, throwaway WooCommerce for development. Fictional data only.
+# The connector itself can be run on the host with uvicorn or built from Dockerfile.
+services:
+  db:
+    image: mysql:8.0
+    command: ["--default-authentication-plugin=mysql_native_password"]
+    environment:
+      MYSQL_DATABASE: wordpress
+      MYSQL_USER: wp
+      MYSQL_PASSWORD: wp-local-only
+      MYSQL_RANDOM_ROOT_PASSWORD: "1"
+    volumes:
+      - dbdata:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uwp", "-pwp-local-only"]
+      interval: 5s
+      retries: 30
+
+  wordpress:
+    image: wordpress:7-php8.2-apache
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8081:80"
+    environment:
+      WORDPRESS_DB_HOST: db
+      WORDPRESS_DB_NAME: wordpress
+      WORDPRESS_DB_USER: wp
+      WORDPRESS_DB_PASSWORD: wp-local-only
+      # WooCommerce only accepts HTTP Basic key auth over TLS.
+      # For local development only.
+      WORDPRESS_CONFIG_EXTRA: |
+        $$_SERVER['HTTPS'] = 'on';
+        define('WP_HOME', 'http://localhost:8081');
+        define('WP_SITEURL', 'http://localhost:8081');
+    volumes:
+      - wpdata:/var/www/html
+
+  setup:
+    
+    image: wordpress:cli-php8.2
+    user: "33:33"
+    depends_on:
+      - wordpress
+    environment:
+      WORDPRESS_DB_HOST: db
+      WORDPRESS_DB_NAME: wordpress
+      WORDPRESS_DB_USER: wp
+      WORDPRESS_DB_PASSWORD: wp-local-only
+    volumes:
+      - wpdata:/var/www/html
+      - ./scripts/wp-setup.sh:/setup.sh:ro
+      - ./.local:/keys
+    command: ["sh", "/setup.sh"]
+
+volumes:
+  dbdata:
+  wpdata:
